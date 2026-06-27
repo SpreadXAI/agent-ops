@@ -56,6 +56,7 @@ EOF
 
 cd backend
 python -c "from app.database import ensure_schema; from app.models import Base; from app.database import engine; ensure_schema(); Base.metadata.create_all(bind=engine)"
+python scripts/migrate_schema.py
 python scripts/seed_data.py 200
 cd "$REMOTE_DIR"
 
