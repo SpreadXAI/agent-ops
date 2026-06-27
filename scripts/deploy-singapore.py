@@ -77,6 +77,50 @@ printf 'PASS=%s\n' "${DF_DATABASE_PASSWORD:-}"
     return env
 
 
+def fetch_tactile_api_key() -> str:
+    """Read bridge user API key from Tactile gateway (tactile_prod)."""
+    cmd = r"""#!/bin/bash
+set -euo pipefail
+test -f /etc/tactile/env
+set -a
+. /etc/tactile/env
+set +a
+for d in /opt/tactile/backend /opt/tactile-app/backend /srv/tactile/backend; do
+  if [ -d "$d" ]; then cd "$d"; break; fi
+done
+export PYTHONPATH=.
+export TACTILE_DATABASE_NAME=tactile_prod
+python3 << 'PY'
+import asyncio
+from sqlalchemy import select
+from shared.database import async_session_factory
+from shared.models.app_user import AppUser
+from gateway.app.services.user_api_key_service import UserApiKeyService
+
+async def main() -> None:
+    async with async_session_factory() as db:
+        result = await db.execute(
+            select(AppUser).where(AppUser.email == "spider-radar-bridge@spreadx.ai")
+        )
+        user = result.scalar_one_or_none()
+        if user is None:
+            raise SystemExit("bridge user not found")
+        key = await UserApiKeyService(db).get_plaintext_for_user(user.id)
+        print(key)
+
+asyncio.run(main())
+PY
+"""
+    status, out = run_remote(REGION, TACTILE_INSTANCE, cmd, wait=10, max_wait=180)
+    if status != "Success":
+        raise RuntimeError(f"Failed to read tactile API key: {status}\n{out}")
+    for line in out.splitlines():
+        line = line.strip()
+        if line.startswith("tkt_"):
+            return line
+    raise RuntimeError(f"Bridge API key not found in output:\n{out[-2000:]}")
+
+
 def build_bootstrap_script(jwt_secret: str, clone_url: str, db: dict[str, str], tactile: dict[str, str]) -> str:
     def esc(s: str) -> str:
         return s.replace("'", "'\"'\"'")
@@ -126,6 +170,7 @@ EOF
 export PYTHONPATH=backend
 cd backend
 python -c "from app.database import ensure_schema; from app.models import Base; from app.database import engine; ensure_schema(); Base.metadata.create_all(bind=engine)"
+python scripts/migrate_schema.py
 python scripts/migrate_schema.py
 python scripts/seed_data.py 200
 cd "$REMOTE_DIR"
@@ -223,7 +268,8 @@ def main() -> None:
         "AGENT_ID": os.environ.get("TACTILE_AGENT_ID", "5"),
     }
     if not tactile["API_KEY"]:
-        print("WARN: TACTILE_API_KEY not set — run dispatch will fail until configured on server", file=sys.stderr)
+        print("==> Fetch bridge API key from Tactile gateway")
+        tactile["API_KEY"] = fetch_tactile_api_key()
 
     print(f"==> Bootstrap spider-radar on {INSTANCE} ({REGION})")
     remote = build_bootstrap_script(jwt_secret, clone_url, db, tactile)
