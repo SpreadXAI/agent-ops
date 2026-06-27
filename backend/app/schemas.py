@@ -1,8 +1,13 @@
 from datetime import datetime, time
 
+from typing import TYPE_CHECKING
+
 from pydantic import BaseModel, Field
 
 from app.models import AccountStatus, AccountTier, InvitationStatus, TaskStatus, WorkspaceMemberRole
+
+if TYPE_CHECKING:
+    from app.models import SocialAccount
 
 
 class UserRegister(BaseModel):
@@ -141,8 +146,38 @@ class SocialAccountOut(BaseModel):
     status: AccountStatus
     owner_user_id: int | None
     workspace_id: int | None = None
+    has_cookie: bool = False
+    tactile_last_work_id: int | None = None
 
     model_config = {"from_attributes": True}
+
+    @classmethod
+    def from_model(cls, account: "SocialAccount") -> "SocialAccountOut":
+        data = cls.model_validate(account)
+        data.has_cookie = bool(account.session_cookie)
+        return data
+
+
+class CookieUpdate(BaseModel):
+    session_cookie: str = Field(min_length=1)
+
+
+class AccountRunOut(BaseModel):
+    log_id: int
+    tactile_work_id: int | None
+    tactile_session_id: str | None
+    status: TaskStatus
+    message: str
+
+
+class TactileCallbackLog(BaseModel):
+    account_id: int
+    step: str = Field(min_length=1, max_length=64)
+    message: str
+    screenshot_url: str | None = None
+    status: TaskStatus = TaskStatus.completed
+    tactile_work_id: int | None = None
+    tactile_session_id: str | None = None
 
 
 class PromptUpdate(BaseModel):
@@ -208,6 +243,8 @@ class ExecutionLogOut(BaseModel):
     status: TaskStatus
     created_at: datetime
     account_handle: str | None = None
+    tactile_work_id: int | None = None
+    tactile_session_id: str | None = None
 
     model_config = {"from_attributes": True}
 

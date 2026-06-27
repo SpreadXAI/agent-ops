@@ -32,6 +32,18 @@ class Settings(BaseSettings):
 
     cors_origins: str = "*"
 
+    tactile_api_base: str = Field(
+        default="https://foxrouter.com/api", validation_alias="TACTILE_API_BASE"
+    )
+    tactile_api_key: str = Field(default="", validation_alias="TACTILE_API_KEY")
+    tactile_workspace_id: int = Field(default=0, validation_alias="TACTILE_WORKSPACE_ID")
+    tactile_agent_id: int = Field(default=0, validation_alias="TACTILE_AGENT_ID")
+    tactile_callback_secret: str = Field(default="", validation_alias="TACTILE_CALLBACK_SECRET")
+
+    @property
+    def tactile_callback_token(self) -> str:
+        return self.tactile_callback_secret or self.tactile_api_key
+
     @property
     def database_url(self) -> str:
         return (

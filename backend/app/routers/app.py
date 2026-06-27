@@ -1,9 +1,10 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, status
 from sqlalchemy.orm import Session, joinedload
 
 from app.auth import get_current_user
+from app.config import get_settings
 from app.database import get_db
 from app.models import (
     AccountPrompt,
@@ -19,8 +20,10 @@ from app.models import (
     WorkspaceMember,
 )
 from app.schemas import (
+    AccountRunOut,
     BatchTaskCreate,
     BatchTaskOut,
+    CookieUpdate,
     DashboardStats,
     ExecutionLogOut,
     PromptOut,
@@ -28,7 +31,10 @@ from app.schemas import (
     ScheduleCreate,
     ScheduleOut,
     SocialAccountOut,
+    TactileCallbackLog,
 )
+from app.tactile.client import TactileError
+from app.tactile.dispatcher import dispatch_account_run
 from app.workspace import ensure_user_workspace, get_membership
 
 router = APIRouter(tags=["app"])
@@ -93,7 +99,7 @@ def list_market_accounts(
         .limit(min(limit, 100))
         .all()
     )
-    return [SocialAccountOut.model_validate(r) for r in rows]
+    return [SocialAccountOut.from_model(r) for r in rows]
 
 
 @router.get("/my/accounts", response_model=list[SocialAccountOut])
@@ -108,7 +114,82 @@ def list_my_accounts(
         .order_by(SocialAccount.id)
         .all()
     )
-    return [SocialAccountOut.model_validate(r) for r in rows]
+    return [SocialAccountOut.from_model(r) for r in rows]
+
+
+@router.put("/my/accounts/{account_id}/cookie", response_model=SocialAccountOut)
+def update_account_cookie(
+    account_id: int,
+    payload: CookieUpdate,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> SocialAccountOut:
+    account = _workspace_account(db, current_user, account_id)
+    account.session_cookie = payload.session_cookie.strip()
+    db.commit()
+    db.refresh(account)
+    return SocialAccountOut.from_model(account)
+
+
+@router.post("/my/accounts/{account_id}/run", response_model=AccountRunOut)
+def run_account_now(
+    account_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> AccountRunOut:
+    account = _workspace_account(db, current_user, account_id)
+    settings = get_settings()
+    try:
+        log = dispatch_account_run(db, settings, account, current_user)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except TactileError as exc:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=exc.detail) from exc
+    return AccountRunOut(
+        log_id=log.id,
+        tactile_work_id=log.tactile_work_id,
+        tactile_session_id=log.tactile_session_id,
+        status=log.status,
+        message=log.message,
+    )
+
+
+@router.post("/tactile/callback/logs", response_model=ExecutionLogOut)
+def tactile_callback_log(
+    payload: TactileCallbackLog,
+    db: Annotated[Session, Depends(get_db)],
+    x_tactile_callback_secret: Annotated[str | None, Header(alias="X-Tactile-Callback-Secret")] = None,
+) -> ExecutionLogOut:
+    settings = get_settings()
+    token = settings.tactile_callback_token
+    if not token or x_tactile_callback_secret != token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid callback secret")
+
+    account = db.get(SocialAccount, payload.account_id)
+    if account is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Account not found")
+
+    if payload.status in (TaskStatus.completed, TaskStatus.failed):
+        account.status = AccountStatus.sold
+        if payload.tactile_work_id:
+            account.tactile_last_work_id = payload.tactile_work_id
+
+    log = ExecutionLog(
+        account_id=account.id,
+        user_id=account.owner_user_id,
+        step=payload.step,
+        message=payload.message,
+        screenshot_url=payload.screenshot_url,
+        status=payload.status,
+        tactile_work_id=payload.tactile_work_id,
+        tactile_session_id=payload.tactile_session_id,
+    )
+    db.add(log)
+    db.commit()
+    db.refresh(log)
+    out = ExecutionLogOut.model_validate(log)
+    out.account_handle = account.handle
+    return out
 
 
 @router.post("/my/accounts/{account_id}/purchase", response_model=SocialAccountOut)
@@ -131,7 +212,7 @@ def purchase_account(
     account.status = AccountStatus.sold
     db.commit()
     db.refresh(account)
-    return SocialAccountOut.model_validate(account)
+    return SocialAccountOut.from_model(account)
 
 
 @router.get("/my/accounts/{account_id}", response_model=SocialAccountOut)
@@ -141,7 +222,7 @@ def get_my_account(
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> SocialAccountOut:
     account = _workspace_account(db, current_user, account_id)
-    return SocialAccountOut.model_validate(account)
+    return SocialAccountOut.from_model(account)
 
 
 @router.get("/my/accounts/{account_id}/prompt", response_model=PromptOut | None)

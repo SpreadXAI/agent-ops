@@ -77,7 +77,7 @@ printf 'PASS=%s\n' "${DF_DATABASE_PASSWORD:-}"
     return env
 
 
-def build_bootstrap_script(jwt_secret: str, clone_url: str, db: dict[str, str]) -> str:
+def build_bootstrap_script(jwt_secret: str, clone_url: str, db: dict[str, str], tactile: dict[str, str]) -> str:
     def esc(s: str) -> str:
         return s.replace("'", "'\"'\"'")
 
@@ -117,6 +117,10 @@ DATABASE_USER={esc(db.get("USER", "tactile_app"))}
 DATABASE_NAME={esc(db.get("NAME", "tactile"))}
 DATABASE_PASSWORD={esc(db["PASS"])}
 JWT_SECRET={esc(jwt_secret)}
+TACTILE_API_BASE={esc(tactile.get("API_BASE", "https://foxrouter.com/api"))}
+TACTILE_API_KEY={esc(tactile.get("API_KEY", ""))}
+TACTILE_WORKSPACE_ID={esc(tactile.get("WORKSPACE_ID", "6"))}
+TACTILE_AGENT_ID={esc(tactile.get("AGENT_ID", "5"))}
 EOF
 
 export PYTHONPATH=backend
@@ -212,8 +216,17 @@ def main() -> None:
     print("==> Read Singapore RDS credentials from tactile gateway")
     db = fetch_db_env()
 
+    tactile = {
+        "API_BASE": os.environ.get("TACTILE_API_BASE", "https://foxrouter.com/api"),
+        "API_KEY": os.environ.get("TACTILE_API_KEY", ""),
+        "WORKSPACE_ID": os.environ.get("TACTILE_WORKSPACE_ID", "6"),
+        "AGENT_ID": os.environ.get("TACTILE_AGENT_ID", "5"),
+    }
+    if not tactile["API_KEY"]:
+        print("WARN: TACTILE_API_KEY not set — run dispatch will fail until configured on server", file=sys.stderr)
+
     print(f"==> Bootstrap spider-radar on {INSTANCE} ({REGION})")
-    remote = build_bootstrap_script(jwt_secret, clone_url, db)
+    remote = build_bootstrap_script(jwt_secret, clone_url, db, tactile)
     encoded = base64.b64encode(remote.encode()).decode()
     cmd = f"echo {encoded} | base64 -d | bash"
     status, out = run_remote(REGION, INSTANCE, cmd, wait=15, max_wait=1200)

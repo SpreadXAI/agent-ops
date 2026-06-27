@@ -63,3 +63,34 @@ python scripts/seed_data.py 200
 cd frontend
 E2E_BASE_URL=http://43.98.185.179 npm run test:e2e
 ```
+
+## Tactile 生产对接
+
+| 项 | 值 |
+|----|-----|
+| **Tactile API** | `https://foxrouter.com/api` |
+| **工作空间** | SpreadX-twitter（workspace_id=6） |
+| **执行 Agent** | Spider Radar Twitter Executor（agent_id=5） |
+| **Bridge 用户** | `spider-radar-bridge@spreadx.ai`（API Key 存服务器 `.env`，勿入库） |
+
+### 用户流程
+
+1. 登录 Spider雷达 → 购号 → 进入账号详情
+2. 填写 Twitter Session Cookie → **保存 Cookie**
+3. 配置 Prompt → **立即执行** → 后端 `POST /api/my/accounts/{id}/run` 派发到 Tactile
+4. 在 [foxrouter.com](https://foxrouter.com) SpreadX-twitter 空间查看 work 状态
+
+### 服务器环境变量（`backend/.env`）
+
+```
+TACTILE_API_BASE=https://foxrouter.com/api
+TACTILE_API_KEY=<bridge user api key>
+TACTILE_WORKSPACE_ID=6
+TACTILE_AGENT_ID=5
+```
+
+### Agent 回调（可选）
+
+Tactile Agent 可通过 `POST /api/tactile/callback/logs` 回写执行日志，请求头：
+
+`X-Tactile-Callback-Secret: <TACTILE_API_KEY 或 TACTILE_CALLBACK_SECRET>`

@@ -5,6 +5,39 @@
     <AccountCard :account="account" />
 
     <div class="card space-y-4 p-6">
+      <h2 class="font-semibold">Tactile 对接</h2>
+      <p class="text-sm text-slate-500">
+        填写 Twitter 会话 Cookie，保存后点「立即执行」将派发到 Tactile 生产环境执行。
+      </p>
+      <div>
+        <label class="mb-1 block text-sm font-medium">Session Cookie</label>
+        <textarea
+          v-model="sessionCookie"
+          class="input min-h-[80px] font-mono text-xs"
+          placeholder="auth_token=...; ct0=..."
+        />
+        <p v-if="account.has_cookie" class="mt-1 text-xs text-green-600">已保存 Cookie</p>
+        <p v-if="account.tactile_last_work_id" class="mt-1 text-xs text-slate-500">
+          最近 Tactile work_id: {{ account.tactile_last_work_id }}
+        </p>
+      </div>
+      <div class="flex flex-wrap gap-3">
+        <button class="btn-primary" :disabled="savingCookie" @click="saveCookie">
+          {{ savingCookie ? '保存中…' : '保存 Cookie' }}
+        </button>
+        <button
+          class="rounded-lg border border-brand-600 px-4 py-2 text-sm font-medium text-brand-600 hover:bg-brand-50 disabled:opacity-50"
+          :disabled="running || !account.has_cookie && !sessionCookie.trim()"
+          @click="runNow"
+        >
+          {{ running ? '派发中…' : '立即执行' }}
+        </button>
+      </div>
+      <p v-if="cookieMsg" class="text-sm text-green-600">{{ cookieMsg }}</p>
+      <p v-if="runMsg" class="text-sm" :class="runError ? 'text-red-600' : 'text-green-600'">{{ runMsg }}</p>
+    </div>
+
+    <div class="card space-y-4 p-6">
       <h2 class="font-semibold">人设 & Prompt</h2>
       <div>
         <label class="mb-1 block text-sm font-medium">人设描述</label>
@@ -74,10 +107,16 @@ const account = ref<SocialAccount | null>(null)
 const schedules = ref<Schedule[]>([])
 const persona = ref('')
 const promptText = ref('')
+const sessionCookie = ref('')
 const loading = ref(true)
 const saving = ref(false)
 const adding = ref(false)
+const savingCookie = ref(false)
+const running = ref(false)
 const saveMsg = ref('')
+const cookieMsg = ref('')
+const runMsg = ref('')
+const runError = ref(false)
 const newStart = ref('09:00')
 const newDuration = ref(30)
 
@@ -96,6 +135,41 @@ async function load() {
   }
   schedules.value = await api.listSchedules(auth.token, accountId)
   loading.value = false
+}
+
+async function saveCookie() {
+  if (!auth.token || !sessionCookie.value.trim()) return
+  savingCookie.value = true
+  cookieMsg.value = ''
+  try {
+    account.value = await api.saveCookie(auth.token, accountId, sessionCookie.value.trim())
+    cookieMsg.value = 'Cookie 已保存'
+  } catch (e) {
+    cookieMsg.value = e instanceof Error ? e.message : '保存失败'
+  }
+  savingCookie.value = false
+}
+
+async function runNow() {
+  if (!auth.token) return
+  if (!account.value?.has_cookie && !sessionCookie.value.trim()) return
+  running.value = true
+  runMsg.value = ''
+  runError.value = false
+  try {
+    if (sessionCookie.value.trim() && !account.value?.has_cookie) {
+      account.value = await api.saveCookie(auth.token, accountId, sessionCookie.value.trim())
+    }
+    const result = await api.runAccount(auth.token, accountId)
+    runMsg.value = `已派发 work_id=${result.tactile_work_id ?? '—'} session=${result.tactile_session_id ?? '—'}`
+    if (account.value && result.tactile_work_id) {
+      account.value.tactile_last_work_id = result.tactile_work_id
+    }
+  } catch (e) {
+    runError.value = true
+    runMsg.value = e instanceof Error ? e.message : '执行失败'
+  }
+  running.value = false
 }
 
 async function savePrompt() {

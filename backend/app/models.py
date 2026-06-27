@@ -146,6 +146,8 @@ class SocialAccount(Base):
     status: Mapped[AccountStatus] = mapped_column(Enum(AccountStatus), default=AccountStatus.available)
     owner_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True, index=True)
     workspace_id: Mapped[int | None] = mapped_column(ForeignKey("workspaces.id"), nullable=True, index=True)
+    session_cookie: Mapped[str | None] = mapped_column(Text, nullable=True)
+    tactile_last_work_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     owner: Mapped[User | None] = relationship(back_populates="accounts")
@@ -226,6 +228,8 @@ class ExecutionLog(Base):
     message: Mapped[str] = mapped_column(Text)
     screenshot_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
     status: Mapped[TaskStatus] = mapped_column(Enum(TaskStatus), default=TaskStatus.completed)
+    tactile_work_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    tactile_session_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     account: Mapped[SocialAccount] = relationship(back_populates="logs")

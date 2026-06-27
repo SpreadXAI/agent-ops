@@ -55,6 +55,22 @@ def migrate() -> None:
             conn.execute(text(f'ALTER TABLE "{schema}".social_accounts ADD COLUMN workspace_id INTEGER'))
             print("Added social_accounts.workspace_id")
 
+        if has_table("social_accounts"):
+            if not has_column("social_accounts", "session_cookie"):
+                conn.execute(text(f'ALTER TABLE "{schema}".social_accounts ADD COLUMN session_cookie TEXT'))
+                print("Added social_accounts.session_cookie")
+            if not has_column("social_accounts", "tactile_last_work_id"):
+                conn.execute(text(f'ALTER TABLE "{schema}".social_accounts ADD COLUMN tactile_last_work_id INTEGER'))
+                print("Added social_accounts.tactile_last_work_id")
+
+        if has_table("execution_logs"):
+            if not has_column("execution_logs", "tactile_work_id"):
+                conn.execute(text(f'ALTER TABLE "{schema}".execution_logs ADD COLUMN tactile_work_id INTEGER'))
+                print("Added execution_logs.tactile_work_id")
+            if not has_column("execution_logs", "tactile_session_id"):
+                conn.execute(text(f'ALTER TABLE "{schema}".execution_logs ADD COLUMN tactile_session_id VARCHAR(64)'))
+                print("Added execution_logs.tactile_session_id")
+
         if has_table("batch_tasks") and not has_column("batch_tasks", "workspace_id"):
             conn.execute(text(f'ALTER TABLE "{schema}".batch_tasks ADD COLUMN workspace_id INTEGER'))
             print("Added batch_tasks.workspace_id")

@@ -75,6 +75,8 @@ export type SocialAccount = {
   status: string
   owner_user_id: number | null
   workspace_id?: number | null
+  has_cookie?: boolean
+  tactile_last_work_id?: number | null
 }
 
 export type DashboardStats = {
@@ -116,6 +118,16 @@ export type ExecutionLog = {
   status: string
   created_at: string
   account_handle?: string
+  tactile_work_id?: number | null
+  tactile_session_id?: string | null
+}
+
+export type AccountRunResult = {
+  log_id: number
+  tactile_work_id: number | null
+  tactile_session_id: string | null
+  status: string
+  message: string
 }
 
 function authHeaders(token: string | null): HeadersInit {
@@ -184,6 +196,13 @@ export const api = {
     request<{ persona: string; prompt_text: string } | null>(`/my/accounts/${accountId}/prompt`, token),
   savePrompt: (token: string, accountId: number, body: { persona: string; prompt_text: string }) =>
     request(`/my/accounts/${accountId}/prompt`, token, { method: 'PUT', body: JSON.stringify(body) }),
+  saveCookie: (token: string, accountId: number, session_cookie: string) =>
+    request<SocialAccount>(`/my/accounts/${accountId}/cookie`, token, {
+      method: 'PUT',
+      body: JSON.stringify({ session_cookie }),
+    }),
+  runAccount: (token: string, accountId: number) =>
+    request<AccountRunResult>(`/my/accounts/${accountId}/run`, token, { method: 'POST' }),
   listSchedules: (token: string, accountId: number) =>
     request<Schedule[]>(`/my/accounts/${accountId}/schedules`, token),
   createSchedule: (
