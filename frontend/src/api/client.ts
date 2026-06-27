@@ -2,8 +2,7 @@ const API_BASE = '/agent-ops/api'
 
 export type User = {
   id: number
-  username: string
-  email: string | null
+  email: string
   display_name: string
   created_at: string
 }
@@ -88,17 +87,19 @@ async function request<T>(path: string, token: string | null, init?: RequestInit
 }
 
 export const api = {
-  register: (body: { username: string; password: string; email?: string; display_name: string }) =>
+  register: (body: { email: string; password: string }) =>
     request<{ access_token: string; user: User }>('/auth/register', null, {
       method: 'POST',
       body: JSON.stringify(body),
     }),
-  login: (body: { username: string; password: string }) =>
+  login: (body: { email: string; password: string }) =>
     request<{ access_token: string; user: User }>('/auth/login', null, {
       method: 'POST',
       body: JSON.stringify(body),
     }),
   me: (token: string) => request<User>('/auth/me', token),
+  updateProfile: (token: string, body: { display_name: string }) =>
+    request<User>('/auth/profile', token, { method: 'PUT', body: JSON.stringify(body) }),
   dashboard: (token: string) => request<DashboardStats>('/dashboard', token),
   marketAccounts: (token: string, skip = 0, limit = 50) =>
     request<SocialAccount[]>(`/market/accounts?skip=${skip}&limit=${limit}`, token),

@@ -18,8 +18,8 @@
         </RouterLink>
       </nav>
       <div class="border-t border-white/10 p-4">
-        <div class="truncate text-sm font-medium">{{ auth.user?.display_name }}</div>
-        <div class="truncate text-xs text-slate-400">@{{ auth.user?.username }}</div>
+        <div class="truncate text-sm font-medium">{{ auth.displayLabel }}</div>
+        <div class="truncate text-xs text-slate-400">{{ auth.user?.email }}</div>
         <button class="mt-3 w-full rounded-lg bg-white/10 px-3 py-2 text-xs hover:bg-white/20" @click="onLogout">
           退出登录
         </button>
@@ -63,7 +63,7 @@ const titles: Record<string, { title: string; subtitle?: string }> = {
   'account-detail': { title: '账号详情', subtitle: '人设、Prompt 与定时调度' },
   'batch-tasks': { title: '批量任务', subtitle: '多账号同时执行同一任务' },
   logs: { title: '执行日志', subtitle: '关键步骤与执行汇报' },
-  profile: { title: '个人资料', subtitle: '注册时填写的账号信息' },
+  profile: { title: '个人资料', subtitle: '设置昵称与查看邮箱' },
 }
 
 const title = computed(() => titles[String(route.name)]?.title ?? 'Agent Ops')

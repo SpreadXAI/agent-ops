@@ -6,21 +6,22 @@ from app.models import AccountStatus, AccountTier, TaskStatus
 
 
 class UserRegister(BaseModel):
-    username: str = Field(min_length=3, max_length=64)
+    email: str = Field(min_length=3, max_length=255)
     password: str = Field(min_length=6, max_length=128)
-    email: str | None = Field(default=None, max_length=255)
-    display_name: str = Field(min_length=1, max_length=128)
 
 
 class UserLogin(BaseModel):
-    username: str
+    email: str
     password: str
+
+
+class UserProfileUpdate(BaseModel):
+    display_name: str = Field(max_length=128)
 
 
 class UserOut(BaseModel):
     id: int
-    username: str
-    email: str | None
+    email: str
     display_name: str
     created_at: datetime
 

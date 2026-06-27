@@ -2,32 +2,35 @@
   <div class="flex min-h-screen items-center justify-center bg-gradient-to-br from-brand-900 via-slate-900 to-slate-800 p-4">
     <div class="card w-full max-w-md p-8">
       <div class="mb-6 text-center">
-        <h1 class="text-2xl font-bold text-slate-900">创建账号</h1>
-        <p class="mt-2 text-sm text-slate-500">填写账号信息，无需验证码</p>
+        <h1 class="text-2xl font-bold text-slate-900">注册</h1>
+        <p class="mt-2 text-sm text-slate-500">邮箱 + 密码即可，昵称登录后再填</p>
       </div>
       <form class="space-y-4" @submit.prevent="onSubmit">
         <div>
-          <label for="reg-username" class="mb-1 block text-sm font-medium text-slate-700">登录账号 *</label>
-          <input id="reg-username" v-model="form.username" class="input" type="text" required minlength="3" />
+          <label for="reg-email" class="mb-1 block text-sm font-medium text-slate-700">邮箱</label>
+          <input
+            id="reg-email"
+            v-model="email"
+            class="input"
+            type="email"
+            required
+            autocomplete="email"
+            placeholder="you@example.com"
+          />
         </div>
         <div>
-          <label for="reg-display" class="mb-1 block text-sm font-medium text-slate-700">显示昵称 *</label>
-          <input id="reg-display" v-model="form.display_name" class="input" type="text" required />
+          <label for="reg-password" class="mb-1 block text-sm font-medium text-slate-700">密码</label>
+          <input
+            id="reg-password"
+            v-model="password"
+            class="input"
+            type="password"
+            required
+            minlength="6"
+            autocomplete="new-password"
+          />
         </div>
-        <div>
-          <label for="reg-email" class="mb-1 block text-sm font-medium text-slate-700">邮箱（选填）</label>
-          <input id="reg-email" v-model="form.email" class="input" type="email" />
-        </div>
-        <div>
-          <label for="reg-password" class="mb-1 block text-sm font-medium text-slate-700">密码 *</label>
-          <input id="reg-password" v-model="form.password" class="input" type="password" required minlength="6" />
-        </div>
-        <div>
-          <label for="reg-password2" class="mb-1 block text-sm font-medium text-slate-700">确认密码 *</label>
-          <input id="reg-password2" v-model="confirmPassword" class="input" type="password" required />
-        </div>
-        <p v-if="localError" class="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{{ localError }}</p>
-        <p v-else-if="auth.error" class="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{{ auth.error }}</p>
+        <p v-if="auth.error" class="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{{ auth.error }}</p>
         <button class="btn-primary w-full" type="submit" :disabled="auth.loading">
           {{ auth.loading ? '注册中…' : '注册并登录' }}
         </button>
@@ -41,34 +44,18 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { ref } from 'vue'
 import { useRouter, RouterLink } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
 const auth = useAuthStore()
 const router = useRouter()
-const confirmPassword = ref('')
-const localError = ref<string | null>(null)
-const form = reactive({
-  username: '',
-  display_name: '',
-  email: '',
-  password: '',
-})
+const email = ref('')
+const password = ref('')
 
 async function onSubmit() {
-  localError.value = null
-  if (form.password !== confirmPassword.value) {
-    localError.value = '两次密码不一致'
-    return
-  }
   try {
-    await auth.register({
-      username: form.username,
-      password: form.password,
-      display_name: form.display_name,
-      email: form.email || undefined,
-    })
+    await auth.register(email.value, password.value)
     router.push({ name: 'dashboard' })
   } catch {
     /* store error */

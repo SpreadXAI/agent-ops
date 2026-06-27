@@ -15,6 +15,11 @@ export const useAuthStore = defineStore('auth', () => {
 
   const isAuthenticated = computed(() => !!token.value && !!user.value)
 
+  const displayLabel = computed(() => {
+    if (!user.value) return ''
+    return user.value.display_name || user.value.email
+  })
+
   function persist(sessionToken: string, sessionUser: User) {
     token.value = sessionToken
     user.value = sessionUser
@@ -29,16 +34,11 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.removeItem(USER_KEY)
   }
 
-  async function register(payload: {
-    username: string
-    password: string
-    email?: string
-    display_name: string
-  }) {
+  async function register(email: string, password: string) {
     loading.value = true
     error.value = null
     try {
-      const res = await api.register(payload)
+      const res = await api.register({ email, password })
       persist(res.access_token, res.user)
     } catch (e) {
       error.value = e instanceof Error ? e.message : '注册失败'
@@ -48,11 +48,11 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  async function login(username: string, password: string) {
+  async function login(email: string, password: string) {
     loading.value = true
     error.value = null
     try {
-      const res = await api.login({ username, password })
+      const res = await api.login({ email, password })
       persist(res.access_token, res.user)
     } catch (e) {
       error.value = e instanceof Error ? e.message : '登录失败'
@@ -62,5 +62,23 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  return { token, user, loading, error, isAuthenticated, register, login, logout }
+  async function updateProfile(displayName: string) {
+    if (!token.value) return
+    const updated = await api.updateProfile(token.value, { display_name: displayName })
+    user.value = updated
+    localStorage.setItem(USER_KEY, JSON.stringify(updated))
+  }
+
+  return {
+    token,
+    user,
+    loading,
+    error,
+    isAuthenticated,
+    displayLabel,
+    register,
+    login,
+    logout,
+    updateProfile,
+  }
 })
