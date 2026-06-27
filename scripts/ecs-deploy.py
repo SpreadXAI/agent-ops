@@ -78,7 +78,7 @@ for path_name, anchor in [
 """
 
 
-def run_remote(cmd: str, wait: int = 8) -> tuple[str, str]:
+def run_remote(cmd: str, wait: int = 8, max_wait: int = 420) -> tuple[str, str]:
     client = AcsClient(os.environ["ALIYUN_ACCESS_KEY_ID"], os.environ["ALIYUN_ACCESS_KEY_SECRET"], REGION)
     req = RunCommandRequest.RunCommandRequest()
     req.set_InstanceIds([INSTANCE])
@@ -87,19 +87,26 @@ def run_remote(cmd: str, wait: int = 8) -> tuple[str, str]:
     req.set_accept_format("json")
     resp = json.loads(client.do_action_with_exception(req))
     invoke_id = resp["InvokeId"]
-    time.sleep(wait)
-    req2 = DescribeInvocationResultsRequest.DescribeInvocationResultsRequest()
-    req2.set_InvokeId(invoke_id)
-    req2.set_accept_format("json")
-    r2 = json.loads(client.do_action_with_exception(req2))
-    for item in r2.get("Invocation", {}).get("InvocationResults", {}).get("InvocationResult", []):
-        out = item.get("Output", "")
-        try:
-            out = base64.b64decode(out).decode()
-        except Exception:
-            pass
-        return item.get("InvocationStatus", ""), out
-    return "Unknown", ""
+    elapsed = 0
+    status = "Running"
+    out = ""
+    while elapsed < max_wait:
+        time.sleep(wait)
+        elapsed += wait
+        req2 = DescribeInvocationResultsRequest.DescribeInvocationResultsRequest()
+        req2.set_InvokeId(invoke_id)
+        req2.set_accept_format("json")
+        r2 = json.loads(client.do_action_with_exception(req2))
+        for item in r2.get("Invocation", {}).get("InvocationResults", {}).get("InvocationResult", []):
+            status = item.get("InvocationStatus", "")
+            raw = item.get("Output", "")
+            try:
+                out = base64.b64decode(raw).decode()
+            except Exception:
+                out = raw
+            if status in ("Success", "Failed", "Timeout", "Cancelled"):
+                return status, out
+    return status, out
 
 
 def build_remote_script(jwt_secret: str, clone_url: str) -> str:
@@ -218,7 +225,7 @@ def main() -> None:
     remote_script = build_remote_script(jwt_secret, clone_url)
     encoded = base64.b64encode(remote_script.encode()).decode()
     cmd = f"echo {encoded} | base64 -d | bash"
-    status, out = run_remote(cmd, wait=180)
+    status, out = run_remote(cmd, wait=15, max_wait=600)
     print(out)
     if status != "Success" or "DEPLOY_OK" not in out:
         print(f"Deploy failed: {status}", file=sys.stderr)
