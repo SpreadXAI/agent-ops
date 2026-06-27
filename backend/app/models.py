@@ -147,6 +147,7 @@ class SocialAccount(Base):
     owner_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True, index=True)
     workspace_id: Mapped[int | None] = mapped_column(ForeignKey("workspaces.id"), nullable=True, index=True)
     session_cookie: Mapped[str | None] = mapped_column(Text, nullable=True)
+    tactile_agent_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
     tactile_last_work_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 

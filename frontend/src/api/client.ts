@@ -76,6 +76,7 @@ export type SocialAccount = {
   owner_user_id: number | null
   workspace_id?: number | null
   has_cookie?: boolean
+  tactile_agent_id?: number | null
   tactile_last_work_id?: number | null
 }
 

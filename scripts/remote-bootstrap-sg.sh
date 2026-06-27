@@ -6,6 +6,7 @@ git fetch origin main && git reset --hard origin/main
 export PYTHONPATH=backend
 cd backend
 python scripts/migrate_schema.py
+python scripts/backfill_tactile_agents.py
 python scripts/seed_data.py 200
 
 cat > /etc/systemd/system/spider-radar-api.service << 'UNIT'

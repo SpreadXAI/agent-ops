@@ -37,7 +37,13 @@ class Settings(BaseSettings):
     )
     tactile_api_key: str = Field(default="", validation_alias="TACTILE_API_KEY")
     tactile_workspace_id: int = Field(default=0, validation_alias="TACTILE_WORKSPACE_ID")
-    tactile_agent_id: int = Field(default=0, validation_alias="TACTILE_AGENT_ID")
+    tactile_template_agent_id: int = Field(default=0, validation_alias="TACTILE_AGENT_ID")
+    tactile_template_skill_id: int = Field(default=0, validation_alias="TACTILE_TEMPLATE_SKILL_ID")
+    tactile_template_skill_version_id: int = Field(default=0, validation_alias="TACTILE_TEMPLATE_SKILL_VERSION_ID")
+    tactile_default_runtime_type: str = Field(default="ecs-ubuntu", validation_alias="TACTILE_DEFAULT_RUNTIME_TYPE")
+    spider_radar_public_api_base: str = Field(
+        default="http://43.98.185.179/api", validation_alias="SPIDER_RADAR_PUBLIC_API_BASE"
+    )
     tactile_callback_secret: str = Field(default="", validation_alias="TACTILE_CALLBACK_SECRET")
 
     @property

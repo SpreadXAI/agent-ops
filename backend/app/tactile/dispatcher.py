@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.config import Settings
 from app.models import AccountPrompt, AccountStatus, ExecutionLog, SocialAccount, TaskStatus, User
+from app.tactile.agent_provision import ensure_account_agent
 from app.tactile.client import TactileClient, TactileError
 
 
@@ -20,13 +21,9 @@ def build_dispatch_env(account: SocialAccount) -> dict[str, str]:
     }
 
 
-def build_work_content(*, prompt_text: str, persona: str = "") -> str:
-    lines: list[str] = []
-    if persona.strip():
-        lines.extend([f"Persona: {persona.strip()}", ""])
+def build_work_content(*, prompt_text: str) -> str:
     body = prompt_text.strip() or "Browse Twitter timeline and report activity."
-    lines.append(body)
-    return "\n".join(lines)
+    return body
 
 
 def dispatch_account_run(
@@ -39,13 +36,28 @@ def dispatch_account_run(
 ) -> ExecutionLog:
     if not account.session_cookie:
         raise ValueError("Session cookie is required before run")
-    if not settings.tactile_workspace_id or not settings.tactile_agent_id:
-        raise ValueError("Tactile workspace/agent not configured")
+    if not settings.tactile_workspace_id:
+        raise ValueError("Tactile workspace not configured")
 
     prompt = db.query(AccountPrompt).filter(AccountPrompt.account_id == account.id).first()
-    persona = prompt.persona if prompt else ""
     prompt_text = prompt_override if prompt_override is not None else (prompt.prompt_text if prompt else "")
-    content = build_work_content(prompt_text=prompt_text, persona=persona)
+
+    try:
+        agent_id = ensure_account_agent(db, settings, account)
+    except TactileError as exc:
+        log = ExecutionLog(
+            account_id=account.id,
+            user_id=user.id,
+            step="provision",
+            message=f"Tactile agent provision failed: {exc.detail}",
+            status=TaskStatus.failed,
+        )
+        db.add(log)
+        db.commit()
+        db.refresh(log)
+        raise
+
+    content = build_work_content(prompt_text=prompt_text)
     dispatch_env_json = json.dumps(build_dispatch_env(account), ensure_ascii=False)
 
     client = TactileClient(settings)
@@ -53,7 +65,7 @@ def dispatch_account_run(
     try:
         work = client.create_work(
             workspace_id=settings.tactile_workspace_id,
-            agent_id=settings.tactile_agent_id,
+            agent_id=agent_id,
             name=name,
             content=content,
             dispatch_env_json=dispatch_env_json,
@@ -80,7 +92,7 @@ def dispatch_account_run(
         account_id=account.id,
         user_id=user.id,
         step="dispatch",
-        message=f"Dispatched to Tactile work_id={work_id} session_id={session_id}",
+        message=f"Dispatched to Tactile agent_id={agent_id} work_id={work_id} session_id={session_id}",
         status=TaskStatus.running,
         tactile_work_id=work_id,
         tactile_session_id=session_id,

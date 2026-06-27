@@ -33,6 +33,7 @@ from app.schemas import (
     SocialAccountOut,
     TactileCallbackLog,
 )
+from app.tactile.agent_provision import ensure_account_agent, sync_account_agent_instructions
 from app.tactile.client import TactileError
 from app.tactile.dispatcher import dispatch_account_run
 from app.workspace import ensure_user_workspace, get_membership
@@ -198,6 +199,7 @@ def purchase_account(
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> SocialAccountOut:
+    settings = get_settings()
     ws = _active_workspace(db, current_user)
     if ws.plan:
         current_count = db.query(SocialAccount).filter(SocialAccount.workspace_id == ws.id).count()
@@ -212,6 +214,14 @@ def purchase_account(
     account.status = AccountStatus.sold
     db.commit()
     db.refresh(account)
+    try:
+        ensure_account_agent(db, settings, account)
+    except (ValueError, TactileError) as exc:
+        detail = exc.detail if isinstance(exc, TactileError) else str(exc)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Account purchased but Tactile agent provision failed: {detail}",
+        ) from exc
     return SocialAccountOut.from_model(account)
 
 
@@ -243,7 +253,8 @@ def upsert_prompt(
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> PromptOut:
-    _workspace_account(db, current_user, account_id)
+    account = _workspace_account(db, current_user, account_id)
+    settings = get_settings()
     prompt = db.query(AccountPrompt).filter(AccountPrompt.account_id == account_id).first()
     if prompt is None:
         prompt = AccountPrompt(account_id=account_id, user_id=current_user.id)
@@ -253,6 +264,19 @@ def upsert_prompt(
     prompt.user_id = current_user.id
     db.commit()
     db.refresh(prompt)
+    if account.tactile_agent_id:
+        try:
+            sync_account_agent_instructions(
+                settings,
+                account,
+                persona=payload.persona,
+                prompt_text=payload.prompt_text,
+            )
+        except TactileError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=f"Prompt saved locally but Tactile agent sync failed: {exc.detail}",
+            ) from exc
     return PromptOut.model_validate(prompt)
 
 

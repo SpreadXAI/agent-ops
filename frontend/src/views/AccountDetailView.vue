@@ -17,6 +17,9 @@
           placeholder="auth_token=...; ct0=..."
         />
         <p v-if="account.has_cookie" class="mt-1 text-xs text-green-600">已保存 Cookie</p>
+        <p v-if="account.tactile_agent_id" class="mt-1 text-xs text-slate-500">
+          专属 Tactile Agent: {{ account.tactile_agent_id }}
+        </p>
         <p v-if="account.tactile_last_work_id" class="mt-1 text-xs text-slate-500">
           最近 Tactile work_id: {{ account.tactile_last_work_id }}
         </p>

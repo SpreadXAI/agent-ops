@@ -62,6 +62,9 @@ def migrate() -> None:
             if not has_column("social_accounts", "tactile_last_work_id"):
                 conn.execute(text(f'ALTER TABLE "{schema}".social_accounts ADD COLUMN tactile_last_work_id INTEGER'))
                 print("Added social_accounts.tactile_last_work_id")
+            if not has_column("social_accounts", "tactile_agent_id"):
+                conn.execute(text(f'ALTER TABLE "{schema}".social_accounts ADD COLUMN tactile_agent_id INTEGER'))
+                print("Added social_accounts.tactile_agent_id")
 
         if has_table("execution_logs"):
             if not has_column("execution_logs", "tactile_work_id"):

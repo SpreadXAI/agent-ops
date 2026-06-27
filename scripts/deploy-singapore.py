@@ -168,6 +168,10 @@ TACTILE_API_BASE={esc(tactile.get("API_BASE", "https://foxrouter.com/api"))}
 TACTILE_API_KEY={esc(tactile.get("API_KEY", ""))}
 TACTILE_WORKSPACE_ID={esc(tactile.get("WORKSPACE_ID", "6"))}
 TACTILE_AGENT_ID={esc(tactile.get("AGENT_ID", "5"))}
+TACTILE_TEMPLATE_SKILL_ID={esc(tactile.get("TEMPLATE_SKILL_ID", "23"))}
+TACTILE_TEMPLATE_SKILL_VERSION_ID={esc(tactile.get("TEMPLATE_SKILL_VERSION_ID", "15"))}
+TACTILE_DEFAULT_RUNTIME_TYPE={esc(tactile.get("DEFAULT_RUNTIME_TYPE", "ecs-ubuntu"))}
+SPIDER_RADAR_PUBLIC_API_BASE={esc(tactile.get("SPIDER_RADAR_API_BASE", "http://43.98.185.179/api"))}
 EOF
 
 export PYTHONPATH=backend
@@ -175,6 +179,7 @@ cd backend
 python -c "from app.database import ensure_schema; from app.models import Base; from app.database import engine; ensure_schema(); Base.metadata.create_all(bind=engine)"
 python scripts/migrate_schema.py
 python scripts/migrate_schema.py
+python scripts/backfill_tactile_agents.py
 python scripts/seed_data.py 200
 cd "$REMOTE_DIR"
 
@@ -269,6 +274,10 @@ def main() -> None:
         "API_KEY": os.environ.get("TACTILE_API_KEY", ""),
         "WORKSPACE_ID": os.environ.get("TACTILE_WORKSPACE_ID", "6"),
         "AGENT_ID": os.environ.get("TACTILE_AGENT_ID", "5"),
+        "TEMPLATE_SKILL_ID": os.environ.get("TACTILE_TEMPLATE_SKILL_ID", "23"),
+        "TEMPLATE_SKILL_VERSION_ID": os.environ.get("TACTILE_TEMPLATE_SKILL_VERSION_ID", "15"),
+        "DEFAULT_RUNTIME_TYPE": os.environ.get("TACTILE_DEFAULT_RUNTIME_TYPE", "ecs-ubuntu"),
+        "SPIDER_RADAR_API_BASE": os.environ.get("SPIDER_RADAR_PUBLIC_API_BASE", "http://43.98.185.179/api"),
     }
     if not tactile["API_KEY"]:
         print("==> Fetch bridge API key from Tactile gateway")

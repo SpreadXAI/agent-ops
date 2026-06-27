@@ -68,3 +68,12 @@ class TactileClient:
 
     def get_work(self, work_id: int) -> dict[str, Any]:
         return self._request("GET", f"/work/{work_id}")
+
+    def get_agent(self, agent_id: int) -> dict[str, Any]:
+        return self._request("GET", f"/agent/{agent_id}")
+
+    def create_agent(self, body: dict[str, Any]) -> dict[str, Any]:
+        return self._request("POST", "/agent", body)
+
+    def update_agent(self, agent_id: int, body: dict[str, Any]) -> dict[str, Any]:
+        return self._request("PUT", f"/agent/{agent_id}", body)

@@ -147,6 +147,7 @@ class SocialAccountOut(BaseModel):
     owner_user_id: int | None
     workspace_id: int | None = None
     has_cookie: bool = False
+    tactile_agent_id: int | None = None
     tactile_last_work_id: int | None = None
 
     model_config = {"from_attributes": True}

@@ -70,8 +70,10 @@ E2E_BASE_URL=http://43.98.185.179 npm run test:e2e
 |----|-----|
 | **Tactile API** | `https://foxrouter.com/api` |
 | **工作空间** | SpreadX-twitter（workspace_id=6） |
-| **执行 Agent** | Spider Radar Twitter Executor（agent_id=5） |
-| **Bridge 用户** | `spider-radar-bridge@spreadx.ai`（API Key 存服务器 `.env`，勿入库） |
+| **模板 Agent** | `TACTILE_AGENT_ID=5`（复制 Skill 绑定） |
+| **执行模型** | **每账号一个 Tactile Agent**（购号时自动创建） |
+
+购号后每个社交账号会有独立的 `tactile_agent_id`，可单独配置 instructions、Skill、env。批量任务对每个账号各派发一次 work，互不共享 Agent 状态。
 
 ### 用户流程
 
@@ -88,6 +90,10 @@ TACTILE_API_BASE=https://foxrouter.com/api
 TACTILE_API_KEY=<bridge user api key>
 TACTILE_WORKSPACE_ID=6
 TACTILE_AGENT_ID=5
+TACTILE_TEMPLATE_SKILL_ID=23
+TACTILE_TEMPLATE_SKILL_VERSION_ID=15
+TACTILE_DEFAULT_RUNTIME_TYPE=ecs-ubuntu
+SPIDER_RADAR_PUBLIC_API_BASE=http://43.98.185.179/api
 ```
 
 ### Agent 回调（可选）
